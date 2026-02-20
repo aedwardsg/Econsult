@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vaciado de Cartolas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* Login screen */
+  #loginScreen {
+    position: fixed; inset: 0; background: #0d0f14;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; font-family: 'DM Sans', sans-serif;
+  }
+  .login-box {
+    background: #141720; border: 1px solid #252a3a;
+    border-radius: 20px; padding: 40px; width: 100%; max-width: 380px;
+    text-align: center;
+  }
+  .login-box h2 {
+    font-size: 22px; font-weight: 600; margin-bottom: 6px;
+    background: linear-gradient(135deg, #fff 30%, #4f8ef7);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .login-box p { color: #8892a4; font-size: 13px; font-family: 'DM Mono', monospace; margin-bottom: 28px; }
+  .login-input {
+    width: 100%; background: #1c2030; border: 1px solid #252a3a;
+    border-radius: 10px; padding: 14px 16px; color: #e2e8f0;
+    font-family: 'DM Mono', monospace; font-size: 15px; outline: none;
+    text-align: center; letter-spacing: 3px; margin-bottom: 12px;
+    transition: border-color 0.2s;
+  }
+  .login-input:focus { border-color: #4f8ef7; }
+  .login-btn {
+    width: 100%; padding: 14px;
+    background: linear-gradient(135deg, #4f8ef7, #7c5cbf);
+    border: none; border-radius: 10px; color: #fff;
+    font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: filter 0.2s;
+  }
+  .login-btn:hover { filter: brightness(1.1); }
+  .login-error {
+    color: #f05252; font-size: 12px; font-family: 'DM Mono', monospace;
+    margin-top: 10px; min-height: 18px;
+  }
+  .login-lock { font-size: 40px; margin-bottom: 16px; }
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #141720;
+    --surface2: #1c2030;
+    --border: #252a3a;
+    --accent: #4f8ef7;
+    --accent2: #7c5cbf;
+    --green: #3ecf8e;
+    --red: #f05252;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 80px;
+  }
+
+  .header { text-align: center; margin-bottom: 48px; }
+  .header h1 {
+    font-size: clamp(22px, 4vw, 34px);
+    font-weight: 600;
+    background: linear-gradient(135deg, #fff 30%, #4f8ef7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  .header p { color: var(--muted); font-size: 14px; font-family: var(--mono); }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(79,142,247,0.1); border: 1px solid rgba(79,142,247,0.25);
+    color: var(--accent); font-family: var(--mono); font-size: 11px;
+    padding: 4px 10px; border-radius: 20px; margin-bottom: 16px;
+  }
+
+  .container { width: 100%; max-width: 820px; display: flex; flex-direction: column; gap: 20px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+  }
+  .card-title {
+    font-size: 12px; font-family: var(--mono); color: var(--muted);
+    letter-spacing: 1px; text-transform: uppercase; margin-bottom: 16px;
+  }
+
+  /* API Key input */
+  .api-row {
+    display: flex; gap: 10px; align-items: center;
+  }
+  .api-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .api-input:focus { border-color: var(--accent); }
+  .api-input::placeholder { color: var(--muted); }
+  .api-toggle {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; color: var(--muted);
+    cursor: pointer; font-size: 16px; transition: color 0.2s;
+  }
+  .api-toggle:hover { color: var(--text); }
+  .api-hint {
+    font-size: 11px; font-family: var(--mono); color: var(--muted);
+    margin-top: 8px;
+  }
+  .api-hint a { color: var(--accent); text-decoration: none; }
+  .api-hint a:hover { text-decoration: underline; }
+
+  /* Drop zone */
+  .dropzone {
+    border: 2px dashed var(--border); border-radius: 12px;
+    padding: 48px 24px; text-align: center; cursor: pointer;
+    transition: all 0.2s; position: relative;
+  }
+  .dropzone:hover, .dropzone.drag-over {
+    border-color: var(--accent); background: rgba(79,142,247,0.04);
+  }
+  .dropzone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .dropzone-icon { font-size: 36px; margin-bottom: 12px; display: block; }
+  .dropzone h3 { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+  .dropzone p { font-size: 13px; color: var(--muted); font-family: var(--mono); }
+
+  .file-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+  .file-item {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px;
+    font-family: var(--mono); font-size: 13px;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+  .file-icon { font-size: 18px; }
+  .file-name { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-size { color: var(--muted); font-size: 11px; }
+  .file-remove {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    padding: 2px 6px; border-radius: 4px; font-size: 14px; transition: color 0.15s;
+  }
+  .file-remove:hover { color: var(--red); }
+
+  /* Columns */
+  .cols-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+  .col-chip {
+    display: flex; align-items: center; gap: 7px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 12px; font-size: 12px; font-family: var(--mono);
+  }
+  .col-chip .dot { width:6px; height:6px; border-radius:50%; background: var(--accent); flex-shrink:0; }
+
+  /* Button */
+  .btn-extract {
+    width: 100%; padding: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: 12px; color: #fff;
+    font-family: var(--sans); font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn-extract:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+  .btn-extract:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* Progress */
+  .progress-card { display: none; }
+  .progress-card.visible { display: block; }
+  .progress-steps { display: flex; flex-direction: column; gap: 12px; }
+  .step {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 13px; font-family: var(--mono); opacity: 0.4; transition: opacity 0.3s;
+  }
+  .step.active { opacity: 1; }
+  .step.done { opacity: 1; color: var(--green); }
+  .step.error { opacity: 1; color: var(--red); }
+  .step-icon {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; flex-shrink: 0; border: 1.5px solid currentColor;
+  }
+  .step.done .step-icon { background: rgba(62,207,142,0.15); }
+  .step.active .step-icon { background: rgba(79,142,247,0.15); border-color:var(--accent); color:var(--accent); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .error-box {
+    background: rgba(240,82,82,0.1); border: 1px solid rgba(240,82,82,0.3);
+    border-radius: 10px; padding: 16px; font-family: var(--mono); font-size: 13px;
+    color: var(--red); margin-top: 12px; white-space: pre-wrap;
+  }
+
+  /* Results */
+  .results-card { display: none; }
+  .results-card.visible { display: block; }
+  .results-table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; min-width: 900px; }
+  thead tr { background: var(--surface2); }
+  th {
+    padding: 10px 12px; text-align: left; color: var(--muted);
+    font-weight: 500; font-size: 11px; letter-spacing: 0.5px;
+    white-space: nowrap; border-bottom: 1px solid var(--border);
+  }
+  td { padding: 9px 12px; border-bottom: 1px solid rgba(37,42,58,0.5); color: var(--text); white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 500; }
+  .tag-accion { background: rgba(79,142,247,0.15); color: var(--accent); }
+  .tag-fondo { background: rgba(124,92,191,0.15); color: #a78bfa; }
+  .tag-bono { background: rgba(62,207,142,0.15); color: var(--green); }
+  .tag-etf { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .tag-mm { background: rgba(156,163,175,0.15); color: #9ca3af; }
+  .tag-caja { background: rgba(249,115,22,0.15); color: #fb923c; }
+
+  .btn-download {
+    display: flex; align-items: center; gap: 8px; padding: 12px 24px;
+    background: var(--green); border: none; border-radius: 10px;
+    color: #0d1117; font-family: var(--sans); font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; margin-top: 16px;
+  }
+  .btn-download:hover { filter: brightness(1.1); }
+
+  .results-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px; flex-wrap: wrap; gap: 12px;
+  }
+  .stat-chips { display: flex; gap: 10px; flex-wrap: wrap; }
+  .stat-chip {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 12px; font-family: var(--mono); font-size: 12px;
+  }
+  .stat-chip span { color: var(--accent); font-weight: 500; }
+  .empty { color: var(--muted); font-style: italic; }
+
+  .custodio-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 4px; font-size: 10px;
+    font-weight: 600; letter-spacing: 0.5px;
+  }
+  .custodio-santander { background: rgba(236,15,26,0.15); color: #ff4f5a; }
+  .custodio-bci { background: rgba(0,120,200,0.15); color: #4da6ff; }
+  .custodio-other { background: rgba(150,150,150,0.15); color: #aaa; }
+
+  .privacy-note {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(62,207,142,0.06); border: 1px solid rgba(62,207,142,0.2);
+    border-radius: 10px; padding: 12px 16px;
+    font-family: var(--mono); font-size: 12px; color: var(--green);
+    margin-top: 12px;
+  }
+
+  /* Login */
+  #loginScreen {
+    position: fixed; inset: 0; background: #0d0f14;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+  }
+  .login-box {
+    background: #141720; border: 1px solid #252a3a;
+    border-radius: 20px; padding: 44px 36px; width: 100%; max-width: 380px;
+    text-align: center;
+  }
+  .login-lock { font-size: 40px; margin-bottom: 16px; }
+  .login-box h2 {
+    font-size: 22px; font-weight: 600; margin-bottom: 6px;
+    background: linear-gradient(135deg, #fff 30%, #4f8ef7);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .login-box p { color: #8892a4; font-size: 13px; font-family: var(--mono); margin-bottom: 28px; }
+  .login-input {
+    width: 100%; background: #1c2030; border: 1px solid #252a3a;
+    border-radius: 10px; padding: 14px 16px; color: #e2e8f0;
+    font-family: var(--mono); font-size: 18px; outline: none;
+    text-align: center; letter-spacing: 4px; margin-bottom: 12px;
+    transition: border-color 0.2s;
+  }
+  .login-input:focus { border-color: #4f8ef7; }
+  .login-btn {
+    width: 100%; padding: 14px;
+    background: linear-gradient(135deg, #4f8ef7, #7c5cbf);
+    border: none; border-radius: 10px; color: #fff;
+    font-family: var(--sans); font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: filter 0.2s;
+  }
+  .login-btn:hover { filter: brightness(1.1); }
+  .login-error { color: #f05252; font-size: 12px; font-family: var(--mono); margin-top: 10px; min-height: 18px; }
+  #mainApp { display: none; }
+</style>
+</head>
+<body>
+
+<!-- PANTALLA DE LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-lock">🔐</div>
+    <h2>Vaciado de Cartolas</h2>
+    <p>Ingresa la contraseña para continuar</p>
+    <input class="login-input" id="loginInput" type="password" placeholder="••••••"
+      onkeydown="if(event.key==='Enter') checkPassword()" autofocus />
+    <button class="login-btn" onclick="checkPassword()">Entrar</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- APP PRINCIPAL -->
+<div id="mainApp">
+
+<div class="header">
+  <div class="badge">⚡ Powered by Claude AI</div>
+  <h1>Vaciado de Cartolas</h1>
+  <p>Sube cartolas PDF → extrae posiciones → descarga Excel</p>
+</div>
+
+<div class="container">
+
+  <!-- API Key -->
+  <div class="card">
+    <div class="card-title">00 — API Key de Anthropic</div>
+    <div class="api-row">
+      <input class="api-input" id="apiKey" type="password" placeholder="sk-ant-api03-..." />
+      <button class="api-toggle" onclick="toggleKey()" title="Mostrar/ocultar">👁</button>
+    </div>
+    <div class="api-hint">
+      Obtén tu key en <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a> · La key nunca se guarda, solo vive en esta sesión.
+    </div>
+    <div class="privacy-note">
+      🔒 Los PDFs se procesan y se borran inmediatamente. Nada se guarda en ningún servidor.
+    </div>
+  </div>
+
+  <!-- Upload -->
+  <div class="card">
+    <div class="card-title">01 — Sube tus cartolas</div>
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" multiple accept=".pdf" />
+      <span class="dropzone-icon">📄</span>
+      <h3>Arrastra los PDFs aquí</h3>
+      <p>o haz click para seleccionar · múltiples custodios OK</p>
+    </div>
+    <div class="file-list" id="fileList"></div>
+  </div>
+
+  <!-- Columns -->
+  <div class="card">
+    <div class="card-title">02 — Columnas a extraer</div>
+    <div class="cols-grid">
+      <div class="col-chip"><span class="dot"></span>Custodio</div>
+      <div class="col-chip"><span class="dot"></span>Nombre instrumento</div>
+      <div class="col-chip"><span class="dot"></span>Cantidad</div>
+      <div class="col-chip"><span class="dot"></span>Precio compra</div>
+      <div class="col-chip"><span class="dot"></span>Fecha de compra</div>
+      <div class="col-chip"><span class="dot"></span>Monto invertido</div>
+      <div class="col-chip"><span class="dot"></span>Valor mercado</div>
+      <div class="col-chip"><span class="dot"></span>Fecha liquidación</div>
+      <div class="col-chip"><span class="dot"></span>Tipo instrumento</div>
+      <div class="col-chip"><span class="dot"></span>ISIN</div>
+      <div class="col-chip"><span class="dot"></span>Moneda</div>
+    </div>
+  </div>
+
+  <!-- Extract -->
+  <button class="btn-extract" id="extractBtn" disabled onclick="extractAll()">
+    Extraer posiciones
+  </button>
+
+  <!-- Progress -->
+  <div class="card progress-card" id="progressCard">
+    <div class="card-title">Procesando</div>
+    <div class="progress-steps" id="progressSteps"></div>
+    <div class="error-box" id="errorBox" style="display:none"></div>
+  </div>
+
+  <!-- Results -->
+  <div class="card results-card" id="resultsCard">
+    <div class="results-header">
+      <div>
+        <div class="card-title" style="margin-bottom:4px">Posiciones extraídas</div>
+        <div class="stat-chips" id="statChips"></div>
+      </div>
+      <button class="btn-download" onclick="downloadExcel()">⬇ Descargar Excel</button>
+    </div>
+    <div class="results-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Custodio</th><th>Instrumento</th><th>Tipo</th><th>Moneda</th>
+            <th>Cantidad</th><th>Precio Compra</th><th>Fecha Compra</th>
+            <th>Monto Invertido</th><th>Valor Mercado</th><th>Fecha Liquidación</th><th>ISIN</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const files = [];
+let extractedData = [];
+
+// Check if button should be enabled
+function checkReady() {
+  const key = document.getElementById('apiKey').value.trim();
+  document.getElementById('extractBtn').disabled = files.length === 0 || !key;
+}
+
+document.getElementById('apiKey').addEventListener('input', checkReady);
+
+function toggleKey() {
+  const inp = document.getElementById('apiKey');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+// Drag & drop
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); addFiles([...e.dataTransfer.files]); });
+document.getElementById('fileInput').addEventListener('change', e => { addFiles([...e.target.files]); e.target.value = ''; });
+
+function addFiles(newFiles) {
+  newFiles.forEach(f => {
+    if (f.type === 'application/pdf' && !files.find(x => x.name === f.name)) files.push(f);
+  });
+  renderFileList();
+  checkReady();
+}
+
+function removeFile(name) {
+  const i = files.findIndex(f => f.name === name);
+  if (i !== -1) files.splice(i, 1);
+  renderFileList();
+  checkReady();
+}
+
+function renderFileList() {
+  document.getElementById('fileList').innerHTML = files.map(f => `
+    <div class="file-item">
+      <span class="file-icon">📑</span>
+      <span class="file-name">${f.name}</span>
+      <span class="file-size">${(f.size/1024).toFixed(0)} KB</span>
+      <button class="file-remove" onclick="removeFile('${f.name}')">✕</button>
+    </div>
+  `).join('');
+}
+
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function setStep(id, state, label) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = `step ${state}`;
+  const icons = { pending:'○', active:'◉', done:'✓', error:'✗' };
+  el.innerHTML = `<div class="step-icon">${icons[state]}</div><span>${label}</span>`;
+}
+
+function addStep(id, label) {
+  const div = document.createElement('div');
+  div.className = 'step'; div.id = id;
+  div.innerHTML = `<div class="step-icon">○</div><span>${label}</span>`;
+  document.getElementById('progressSteps').appendChild(div);
+}
+
+async function extractAll() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey || files.length === 0) return;
+
+  extractedData = [];
+  document.getElementById('progressCard').classList.add('visible');
+  document.getElementById('resultsCard').classList.remove('visible');
+  document.getElementById('progressSteps').innerHTML = '';
+  document.getElementById('errorBox').style.display = 'none';
+  document.getElementById('extractBtn').disabled = true;
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const stepId = `step_${i}`;
+    addStep(stepId, `Procesando: ${file.name}`);
+    setStep(stepId, 'active', `Procesando: ${file.name}...`);
+
+    try {
+      const b64 = await fileToBase64(file);
+      const positions = await callClaude(b64, file.name, apiKey);
+      extractedData.push(...positions);
+      setStep(stepId, 'done', `${file.name} — ${positions.length} posición(es)`);
+    } catch (err) {
+      setStep(stepId, 'error', `${file.name} — Error`);
+      const box = document.getElementById('errorBox');
+      box.style.display = 'block';
+      box.textContent = err.message || String(err);
+    }
+  }
+
+  renderResults();
+  checkReady();
+}
+
+async function callClaude(pdfBase64, filename, apiKey) {
+  const systemPrompt = `Eres un extractor de posiciones financieras. Tu tarea es leer una cartola de inversiones y extraer TODAS las posiciones/instrumentos en formato JSON estructurado.
+
+REGLAS CRÍTICAS:
+1. Devuelve SOLO un array JSON válido, sin texto adicional, sin markdown, sin backticks.
+2. Extrae CADA instrumento por separado (bonos, fondos, acciones, ETFs, caja, money market, etc).
+3. Si un campo no está disponible, usa null.
+4. Para instrumentos con múltiples tax lots (múltiples fechas de compra), consolida en UNA fila: suma las cantidades, usa precio promedio ponderado por monto, usa la fecha más antigua.
+5. Detecta el custodio desde el documento (ej: "Santander", "BCI Pershing", "LarrainVial", etc).
+6. Incluye siempre la posición de Caja/Cash si existe.
+
+ESQUEMA de cada objeto:
+{
+  "custodio": string,
+  "nombre_instrumento": string,
+  "tipo_instrumento": uno de ["Acción", "ETF", "Fondo Mutuo", "Fondo de Inversión", "Bono", "Caja", "Money Market", "Otro"],
+  "moneda": string (CLP/USD/EUR/UF),
+  "cantidad": number o null,
+  "precio_compra": number o null,
+  "fecha_compra": string "DD-MM-YYYY" o null,
+  "monto_invertido": number o null,
+  "valor_mercado": number o null,
+  "fecha_liquidacion": string "DD-MM-YYYY" o null,
+  "isin": string o null
+}
+
+MAPEO por custodio:
+- Santander: "Monto Invertido" → monto_invertido, "Saldo Actual" → valor_mercado, "Precio Compra" → precio_compra, "Fecha Vencimiento" → fecha_liquidacion para bonos. ISIN no disponible normalmente.
+- BCI/Pershing: "Current Cost Basis" → monto_invertido, "Market Value" → valor_mercado, "Unit Cost" → precio_compra ponderado, "Date Acquired" → fecha_compra más antigua. ISIN está en el nombre del instrumento (formato ISIN#XXXXXXXXXX).
+- Para Caja: tipo="Caja", valor_mercado=saldo en caja.
+- Para Money Market: tipo="Money Market".`;
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-allow-browser": "true"
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 4000,
+      system: systemPrompt,
+      messages: [{
+        role: "user",
+        content: [{
+          type: "document",
+          source: { type: "base64", media_type: "application/pdf", data: pdfBase64 }
+        }, {
+          type: "text",
+          text: `Extrae todas las posiciones de esta cartola. Archivo: ${filename}`
+        }]
+      }]
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    if (response.status === 401) throw new Error('API key inválida. Verifica tu key en console.anthropic.com');
+    if (response.status === 429) throw new Error('Límite de uso alcanzado. Espera un momento y reintenta.');
+    throw new Error(err.error?.message || `Error HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  const text = data.content.map(b => b.text || '').join('').trim();
+
+  let cleaned = text;
+  if (cleaned.startsWith('```')) cleaned = cleaned.replace(/```json?\n?/g, '').replace(/```/g, '');
+  cleaned = cleaned.trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch(e) {
+    throw new Error(`Error parseando respuesta de Claude: ${e.message}\n\nRespuesta recibida:\n${text.substring(0, 400)}`);
+  }
+}
+
+function tagClass(tipo) {
+  const map = { 'Acción':'accion', 'ETF':'etf', 'Fondo Mutuo':'fondo', 'Fondo de Inversión':'fondo', 'Bono':'bono', 'Money Market':'mm', 'Caja':'caja' };
+  return map[tipo] || 'other';
+}
+
+function custodioClass(c) {
+  if (!c) return 'other';
+  const l = c.toLowerCase();
+  if (l.includes('santander')) return 'santander';
+  if (l.includes('bci') || l.includes('pershing')) return 'bci';
+  return 'other';
+}
+
+function fmt(val, tipo) {
+  if (val === null || val === undefined || val === '') return '<span class="empty">—</span>';
+  if (tipo === 'num') return Number(val).toLocaleString('es-CL', {maximumFractionDigits: 4});
+  return val;
+}
+
+function renderResults() {
+  if (extractedData.length === 0) return;
+  document.getElementById('resultsCard').classList.add('visible');
+
+  const custodios = [...new Set(extractedData.map(d => d.custodio))].filter(Boolean);
+  const types = [...new Set(extractedData.map(d => d.tipo_instrumento))].filter(Boolean);
+  document.getElementById('statChips').innerHTML = `
+    <div class="stat-chip"><span>${extractedData.length}</span> posiciones</div>
+    <div class="stat-chip"><span>${custodios.length}</span> custodio(s)</div>
+    <div class="stat-chip"><span>${types.length}</span> tipos</div>
+  `;
+
+  document.getElementById('resultsBody').innerHTML = extractedData.map(d => `
+    <tr>
+      <td><span class="custodio-badge custodio-${custodioClass(d.custodio)}">${d.custodio || '—'}</span></td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis">${d.nombre_instrumento || '—'}</td>
+      <td><span class="tag tag-${tagClass(d.tipo_instrumento)}">${d.tipo_instrumento || '—'}</span></td>
+      <td>${fmt(d.moneda)}</td>
+      <td style="text-align:right">${fmt(d.cantidad,'num')}</td>
+      <td style="text-align:right">${fmt(d.precio_compra,'num')}</td>
+      <td>${fmt(d.fecha_compra)}</td>
+      <td style="text-align:right">${fmt(d.monto_invertido,'num')}</td>
+      <td style="text-align:right">${fmt(d.valor_mercado,'num')}</td>
+      <td>${fmt(d.fecha_liquidacion)}</td>
+      <td style="font-size:11px;color:var(--muted)">${fmt(d.isin)}</td>
+    </tr>
+  `).join('');
+}
+
+function downloadExcel() {
+  if (extractedData.length === 0) return;
+  const headers = ['Custodio','Nombre Instrumento','Tipo Instrumento','Moneda','Cantidad','Precio Compra','Fecha Compra','Monto Invertido','Valor Mercado','Fecha Liquidación','ISIN'];
+  const rows = extractedData.map(d => [
+    d.custodio??'', d.nombre_instrumento??'', d.tipo_instrumento??'', d.moneda??'',
+    d.cantidad??'', d.precio_compra??'', d.fecha_compra??'', d.monto_invertido??'',
+    d.valor_mercado??'', d.fecha_liquidacion??'', d.isin??''
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  ws['!cols'] = [{wch:14},{wch:40},{wch:18},{wch:8},{wch:14},{wch:14},{wch:14},{wch:16},{wch:16},{wch:16},{wch:20}];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Posiciones');
+  XLSX.writeFile(wb, `cartola_vaciado_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// === CONTRASEÑA === Cambia 'cartolas2024' por la clave que quieras
+const APP_PASSWORD = 'cartolas2024';
+function checkPassword() {
+  const val = document.getElementById('loginInput').value;
+  if (val === APP_PASSWORD) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    document.getElementById('apiKey').focus();
+  } else {
+    const err = document.getElementById('loginError');
+    err.textContent = 'Contrasena incorrecta. Intenta de nuevo.';
+    document.getElementById('loginInput').value = '';
+    document.getElementById('loginInput').focus();
+    setTimeout(() => err.textContent = '', 3000);
+  }
+}
+</script>
+</div><!-- /mainApp -->
+</body>
+</html>
